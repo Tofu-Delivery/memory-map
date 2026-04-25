@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ComposableMap,
   Geographies,
@@ -6,6 +6,14 @@ import {
   Marker,
 } from "react-simple-maps";
 import "./App.css";
+
+import { signInWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
+import { doc, getDoc, setDoc, deleteDoc } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+
+import firebase from "./firebase";
+
+const { auth, db, storage } = firebase;
 
 const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
@@ -17,6 +25,11 @@ function App() {
   const [spotifyPosition, setSpotifyPosition] = useState({ x: 20, y: 520 });
   const [isDraggingSpotify, setIsDraggingSpotify] = useState(false);
   const [spotifyOffset, setSpotifyOffset] = useState({ x: 0, y: 0 });
+  const [caption, setCaption] = useState("");
+  const [user, setUser] = useState(null);
+const [email, setEmail] = useState("");
+const [password, setPassword] = useState("");
+const [loginError, setLoginError] = useState("");
 
   function startSpotifyDrag(e) {
   setIsDraggingSpotify(true);
@@ -39,14 +52,22 @@ function stopSpotifyDrag() {
   setIsDraggingSpotify(false);
 }
 
-  function handleCountryClick(geo) {
-    const countryName = geo.properties.name;
-    const coordinates = geo.geoCentroid;
+  async function handleCountryClick(geo) {
+  const countryName = geo.properties.name;
+  const coordinates = geo.geoCentroid;
 
-    setSelectedCountry(countryName);
-    setSelectedCoordinates(coordinates);
-    setImages(memories[countryName]?.images || []);
+  setSelectedCountry(countryName);
+  setSelectedCoordinates(coordinates);
+
+  const countryRef = doc(db, "memories", countryName);
+  const countrySnap = await getDoc(countryRef);
+
+  if (countrySnap.exists()) {
+    setImages(countrySnap.data().images || []);
+  } else {
+    setImages([]);
   }
+}
 
   function closePopup() {
     setSelectedCountry("");
@@ -54,13 +75,35 @@ function stopSpotifyDrag() {
     setImages([]);
   }
 
-  function handleImageUpload(e) {
+  async function handleImageUpload(e) {
     const files = Array.from(e.target.files);
-    const imageUrls = files.map((file) => URL.createObjectURL(file));
 
-    const updatedImages = [...images, ...imageUrls];
+    const uploadedImages = await Promise.all(
+      files.map(async (file) => {
+        const imageRef = ref(
+          storage,
+          `memories/${selectedCountry}/${Date.now()}-${file.name}`
+        );
+
+        await uploadBytes(imageRef, file);
+        const downloadURL = await getDownloadURL(imageRef);
+
+        return {
+          url: downloadURL,
+          caption: caption.slice(0, 100),
+        };
+      })
+    );
+
+    const updatedImages = [...images, ...uploadedImages];
 
     setImages(updatedImages);
+    setCaption("");
+
+    await setDoc(doc(db, "memories", selectedCountry), {
+      images: updatedImages,
+      coordinates: selectedCoordinates,
+    });
 
     setMemories({
       ...memories,
@@ -72,10 +115,92 @@ function stopSpotifyDrag() {
   }
 
   
+  async function deletePhoto(indexToDelete) {
+  const updatedImages = images.filter((_, index) => index !== indexToDelete);
+
+  setImages(updatedImages);
+
+  if (updatedImages.length === 0) {
+    await deleteDoc(doc(db, "memories", selectedCountry));
+
+    const updatedMemories = { ...memories };
+    delete updatedMemories[selectedCountry];
+    setMemories(updatedMemories);
+  } else {
+    await setDoc(doc(db, "memories", selectedCountry), {
+      images: updatedImages,
+      coordinates: selectedCoordinates,
+    });
+
+    setMemories({
+      ...memories,
+      [selectedCountry]: {
+        images: updatedImages,
+        coordinates: selectedCoordinates,
+      },
+    });
+  }
+}
+
+useEffect(() => {
+  const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    setUser(currentUser);
+  });
+
+  return () => unsubscribe();
+}, []);
+
+function handleLogin(e) {
+  e.preventDefault();
+
+  signInWithEmailAndPassword(auth, email, password)
+    .then(() => {
+      setLoginError("");
+    })
+    .catch(() => {
+      setLoginError("Wrong email or password. Please try again.");
+    });
+}
+
+function handleLogout() {
+  signOut(auth);
+}
+
+if (!user) {
+  return (
+    <div className="login-page">
+      <form className="login-card" onSubmit={handleLogin}>
+        <h1>💕 Our Little World Map 💕</h1>
+        <p>Login to unlock our memories.</p>
+
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+
+        {loginError && <p className="login-error">{loginError}</p>}
+
+        <button type="submit">Login</button>
+      </form>
+    </div>
+  );
+}
 
   return (
     <div className="app" onMouseMove={dragSpotify} onMouseUp={stopSpotifyDrag}>
-      <h1 className="title">💕 Our Little World Map 💕</h1>
+      <h1 className="title">Mel and Jacky's Travel Journal</h1>
+      <button className="logout-button" onClick={handleLogout}>
+        Sign out
+      </button>
 
       <div className="cloud cloud-1"></div>
       <div className="cloud cloud-2"></div>
@@ -101,8 +226,6 @@ function stopSpotifyDrag() {
     loading="lazy"
   ></iframe>
 </div>
-      <div className="ocean-life">
-    </div>
 
     <div className="ocean-life">
   {/* Pacific Ocean */}
@@ -242,11 +365,31 @@ function stopSpotifyDrag() {
             ) : (
               <div className="popup-photo-grid">
                 {images.map((img, index) => (
-                  <img key={index} src={img} alt="memory" />
-                ))}
+                <div className="photo-card" key={index}>
+                  <img src={img.url} alt="memory" />
+
+                  <button
+                    className="delete-photo-button"
+                    onClick={() => deletePhoto(index)}
+                  >
+                    ×
+                  </button>
+
+                  <div className="photo-caption">
+                    {img.caption}
+                  </div>
+                </div>
+              ))}
               </div>
             )}
 
+              <textarea
+                className="caption-input"
+                placeholder="Caption (max 100 characters)..."
+                value={caption}
+                maxLength={100}
+                onChange={(e) => setCaption(e.target.value)}
+              />
             <label className="upload-button">
               📸 Upload Photos
               <input

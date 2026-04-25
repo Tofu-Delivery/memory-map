@@ -1,3 +1,1 @@
-{"scripts":{"dev":"vite",
-"build": "node ./node_modules/vite/bin/vite.js build",
-"preview":"vite preview"},"dependencies":{"@vitejs/plugin-react":"latest","vite":"latest","react":"latest","react-dom":"latest","react-simple-maps":"latest"},"devDependencies":{}}
+{"scripts":{"dev":"vite","build":"node ./node_modules/vite/bin/vite.js build","preview":"vite preview"},"dependencies":{"@vitejs/plugin-react":"latest","firebase":"^12.12.1","react":"latest","react-dom":"latest","react-simple-maps":"latest","vite":"latest"}}
