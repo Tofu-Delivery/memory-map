@@ -10,6 +10,7 @@ import "./App.css";
 import { signInWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc, setDoc, deleteDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { geoCentroid } from "d3-geo";
 
 import firebase from "./firebase";
 
@@ -54,18 +55,23 @@ function stopSpotifyDrag() {
 
   async function handleCountryClick(geo) {
   const countryName = geo.properties.name;
-  const coordinates = geo.geoCentroid;
+  const coordinates = geoCentroid(geo);
 
   setSelectedCountry(countryName);
   setSelectedCoordinates(coordinates);
 
-  const countryRef = doc(db, "memories", countryName);
-  const countrySnap = await getDoc(countryRef);
+  try {
+    const countryRef = doc(db, "memories", countryName);
+    const countrySnap = await getDoc(countryRef);
 
-  if (countrySnap.exists()) {
-    setImages(countrySnap.data().images || []);
-  } else {
-    setImages([]);
+    if (countrySnap.exists()) {
+      const data = countrySnap.data();
+      setImages(data.images || []);
+    } else {
+      setImages([]);
+    }
+  } catch (error) {
+    console.error("Could not load memories:", error);
   }
 }
 
@@ -76,7 +82,13 @@ function stopSpotifyDrag() {
   }
 
   async function handleImageUpload(e) {
+  console.log("Upload started");
+
+  try {
     const files = Array.from(e.target.files);
+    console.log("Files:", files);
+    console.log("Selected country:", selectedCountry);
+    console.log("Current user:", auth.currentUser);
 
     const uploadedImages = await Promise.all(
       files.map(async (file) => {
@@ -90,20 +102,24 @@ function stopSpotifyDrag() {
 
         return {
           url: downloadURL,
-          caption: caption.slice(0, 100),
+          caption: caption.trim().slice(0, 100),
         };
       })
     );
 
     const updatedImages = [...images, ...uploadedImages];
 
-    setImages(updatedImages);
-    setCaption("");
+    console.log("About to save to Firestore:", updatedImages);
 
     await setDoc(doc(db, "memories", selectedCountry), {
       images: updatedImages,
       coordinates: selectedCoordinates,
     });
+
+    console.log("✅ Saved to Firestore");
+
+    setImages(updatedImages);
+    setCaption("");
 
     setMemories({
       ...memories,
@@ -112,7 +128,13 @@ function stopSpotifyDrag() {
         coordinates: selectedCoordinates,
       },
     });
+
+    e.target.value = "";
+  } catch (error) {
+    console.error("❌ Upload or Firestore save failed:", error);
+    alert(error.message);
   }
+}
 
   
   async function deletePhoto(indexToDelete) {
