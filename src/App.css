@@ -37,14 +37,11 @@ body,
 .map-container {
   width: 100vw;
   height: 100vh;
-  background: #087982;
 }
 
 .map-container svg {
-  width: 100vw;
-  height: 100vh;
-  display: block;
-  background: #087982;
+  width: 100%;
+  height: 100%;
 }
 
 .map-container svg path {
@@ -956,4 +953,96 @@ body {
   color: white;
   padding: 10px 16px;
   border-radius: 999px;
+}
+
+
+@media (max-width: 768px) {
+  html,
+  body,
+  #root {
+    width: 100%;
+    height: 100%;
+    overflow: auto; /* 🔥 THIS enables dragging */
+  }
+
+  .app {
+  width: 260vw;
+  height: 130vh;
+  overflow: auto;
+  touch-action: pan-x pan-y;
+}
+
+.map-container {
+  width: 260vw;
+  height: 130vh;
+  padding-left: 40vw;
+  padding-right: 40vw;
+}
+
+.map-container svg {
+  width: 180vw !important;
+  height: 130vh !important;
+}
+
+  .title {
+    position: fixed;
+    top: 10px;
+    left: 0;
+    font-size: 18px;
+    z-index: 100;
+  }
+
+  .logout-button {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    z-index: 100;
+    font-size: 12px;
+    padding: 8px 10px;
+  }
+
+  .spotify-widget {
+    position: fixed !important;
+    left: 12px !important;
+    right: 12px !important;
+    bottom: 12px !important;
+    top: auto !important;
+    width: auto !important;
+    max-width: none !important;
+    z-index: 150;
+    border-radius: 18px;
+  }
+
+  .spotify-widget iframe {
+    height: 80px !important;
+    display: block;
+  }
+
+  .spotify-drag-bar {
+    display: none;
+  }
+
+  .ocean-life div {
+    font-size: 12px !important; /* smaller emojis */
+  }
+
+  .popup-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+  }
+
+  .memory-popup {
+    width: 92vw;
+    max-height: 80vh;
+    padding: 18px;
+  }
+
+  .popup-photo-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .photo-card img {
+    height: 220px;
+  }
 }

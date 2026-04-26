@@ -17,6 +17,8 @@ import firebase from "./firebase";
 const { auth, db, storage } = firebase;
 
 const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
+const isMobile = window.innerWidth < 768;
+
 
 function App() {
   const [selectedCountry, setSelectedCountry] = useState("");
@@ -192,8 +194,8 @@ if (!user) {
   return (
     <div className="login-page">
       <form className="login-card" onSubmit={handleLogin}>
-        <h1>💕 Our Little World Map 💕</h1>
-        <p>Login to unlock our memories.</p>
+        <h1>💕 Our Little Travel Journal💕</h1>
+        <p>Login.</p>
 
         <input
           type="email"
@@ -216,6 +218,7 @@ if (!user) {
     </div>
   );
 }
+
 
   return (
     <div className="app" onMouseMove={dragSpotify} onMouseUp={stopSpotifyDrag}>
@@ -267,17 +270,20 @@ if (!user) {
 </div>
 
       <div className="map-container">
-        <ComposableMap
-          projection="geoEqualEarth"
-          projectionConfig={{ scale: 180 }}
-          width={1000}
-          height={520}
-          style={{
-            width: "100vw",
-            height: "100vh",
-            backgroundColor: "#087982",
-          }}
-        >
+  <ComposableMap
+  projection="geoEqualEarth"
+  projectionConfig={{
+    scale: isMobile ? 500 : 220,   // 👈 increase desktop scale
+    center: isMobile ? [0, 5] : [0, 0],
+  }}
+  width={isMobile ? 2000 : 1200}
+  height={isMobile ? 700 : 600}
+  style={{
+    width: "100%",
+    height: "100%",
+    backgroundColor: "#087982",
+  }}
+>
           <Geographies geography={geoUrl}>
             {({ geographies }) =>
               geographies.map((geo) => (
@@ -310,12 +316,13 @@ if (!user) {
           </Geographies>
 
           {/* North America: forests + mountains */}
-<Marker coordinates={[-110, 55]}>
-  <text fontSize={30} textAnchor="middle">🌲🏔️</text>
-</Marker>
 <Marker coordinates={[-95, 40]}>
   <text fontSize={26} textAnchor="middle">🌲🐻</text>
 </Marker>
+<Marker coordinates={[-110, 55]}>
+  <text fontSize={30} textAnchor="middle">🏔️🌲</text>
+</Marker>
+
 
 {/* South America: rainforest */}
 <Marker coordinates={[-60, -10]}>
